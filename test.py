@@ -2,78 +2,82 @@ from sklearn.ensemble import RandomForestClassifier
 import numpy as np
 import math
 
-class Domain:
-	def __init__(self,  _name, _label, _length, _num, _entropy):
-		self.name = _name
-		self.label = _label
-		self.length = _length
-		self.num = _num
-		self.entropy = _entropy
-	def returnData(self):
-		return [self.length, self.num, self.entropy]
-	def returnLabel(self):
-		if self.label == "notdga":
-			return 0
-		else:
-			return 1
 
-def calculateNum(str):
-        num = 0
-	for i in str:
-		if i.isdigit():
-			num += 1
-	return num
+def cal_entropy(text):
+    h = 0.0
+    sum = 0
+    letter = [0] * 26
+    text = text.lower()
+    for char in text:
+        if char.isalpha():
+            letter[ord(char) - ord('a')] += 1
+            sum += 1
+    for i in range(26):
+        p = 1.0 * letter[i] / sum
+        if p > 0:
+            h += -(p * math.log(p, 2))
+    return h
 
-def calculateEntropy(str):
-	#统计字符数目
-	result = {}
-	for i in str:
-		result[i] = str.count(i)
-	sum = len(str)
-	#计算熵值
-	entropy = 0
-	for j in result:
-		entropy = entropy - float(result[j] / sum) * math.log(float(result[j] / sum), 2)
-	return entropy
 
-def initData(filename, domainlist):
-	with open(filename) as f:
-		for line in f:
-			line = line.strip()
-			if line.startswith("#") or line == "":
-				continue
-			tokens = line.split(",")
-			name = tokens[0]
-			if len(tokens) > 1
-				label = tokens[1]
-			else
-				label = "unknown"
-			length = len(name)
-			num = calculateNum(name)
-			entropy = calculateEntropy(name)
-			domainlist.append(Domain(name, label, length, num, entropy))
-			
-def main():
-	#读取训练文件
-	domainlist1 = []
-	initData("train", domainlist1)
-	featureMatrix = []
-	labelList = []
-	for item1 in domainlist1:
-		featureMatrix.append(item1.returnData())
-		labelList.append(item1.returnLabel())
-	#训练
-	clf = RandomForestClassifier(random_state = 0)
-	clf.fit(featureMatrix, labelList)
-	#读取测试文件
-	domainlist2 = []
-	initData("test", domainlist2)
-	with open("result", 'w') as f:
-		for item2 in domainlist2
-			f.write(item2.name)
-			f.write(", ")
-			f.write(clf.predict([item2.returnData]))
-			f.write("\n")
-	
-if __name__ == '__main__':
-	main()
+# 定义notdga为0,dga为1
+
+def deal_with_traindata(filename):
+    Domainlist = []
+    LableList = []
+    with open(filename, 'r') as f:
+
+        for line in f:
+            tokens = line.split(",")
+            length = len(tokens[0])
+            en = cal_entropy(tokens[0])
+            seg = len(tokens[0].split("."))
+            num = 0
+            for char in tokens[0]:
+                if char.isdigit():
+                    num += 1
+
+            if tokens[1] == 'notdga\n':
+                lable = 0
+            else:
+                lable = 1
+
+            Domainlist.append([length, num, en, seg])
+            LableList.append(lable)
+    return Domainlist, LableList
+
+
+def deal_with_testdata(filename):
+    Testlist = []
+    Domainnamelist=[]
+    with open(filename, 'r') as f:
+        for sample in f:
+            Domainnamelist.append(sample.rstrip('\n'))
+            length = len(sample)
+            en = cal_entropy(sample)
+            seg = len(sample.split("."))
+            num = 0
+            for char in sample:
+                if char.isdigit():
+                    num += 1
+            Testlist.append([length, num, en, seg])
+
+    return Testlist,Domainnamelist
+
+
+featureMatrix, labelList = deal_with_traindata("train.txt")
+
+clf = RandomForestClassifier(random_state=0)
+clf.fit(featureMatrix, labelList)
+
+testMatrix ,Domainnamelist= deal_with_testdata("test.txt")
+resultlist = []
+
+with open("result.txt", "w+", newline='') as f:
+    for i in range(len(testMatrix)):
+        t = clf.predict([testMatrix[i]])
+        if t == 0:
+            resultlist.append(Domainnamelist[i] + ',' + 'notdga')
+        elif t == 1:
+            resultlist.append(Domainnamelist[i] + ',' + 'dga')
+    for result in resultlist:
+        f.write(result + '\n')
